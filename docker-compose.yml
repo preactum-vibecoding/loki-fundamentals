@@ -5,8 +5,8 @@ services:
     image: grafana/loki:3.4.2
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
-      - ./loki-config.yaml:/etc/loki/local-config.yaml:ro   # файл→файл
-      - loki-data:/var/loki                                 # данные
+      - ./loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/var/loki
     networks: [loki]
 
   alloy:
@@ -23,36 +23,8 @@ services:
     depends_on: [loki]
     networks: [loki]
 
-  grafana:
-    image: grafana/grafana-oss:latest
-    environment:
-      - SERVICE_FQDN_GRAFANA_3000
-      - GF_SERVER_ROOT_URL=${SERVICE_FQDN_GRAFANA:?}/
-      - GF_SECURITY_ADMIN_PASSWORD=${SERVICE_PASSWORD_GRAFANA:?}
-      - GF_SERVER_SERVE_FROM_SUB_PATH=false
-      - GF_SERVER_ENFORCE_DOMAIN=false
-    volumes:
-      - grafana-data:/var/lib/grafana
-    entrypoint:
-      - sh
-      - -euc
-      - |
-        mkdir -p /etc/grafana/provisioning/datasources
-        cat <<'EOF' > /etc/grafana/provisioning/datasources/ds.yaml
-        apiVersion: 1
-        datasources:
-        - name: Loki
-          type: loki
-          access: proxy
-          url: http://loki:3100
-          isDefault: true
-        EOF
-        /run.sh
-    networks: [loki]
-
 networks:
   loki: {}
 
 volumes:
-  grafana-data: {}
   loki-data: {}
