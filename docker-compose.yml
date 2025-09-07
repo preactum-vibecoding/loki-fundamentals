@@ -27,10 +27,10 @@ services:
     image: grafana/grafana-oss:latest
     environment:
       - SERVICE_FQDN_GRAFANA_3000
-      - GF_SERVER_ROOT_URL=${SERVICE_FQDN_GRAFANA:?}
-      - GF_SERVER_DOMAIN=${SERVICE_FQDN_GRAFANA:?}
+      - GF_SERVER_ROOT_URL=${SERVICE_FQDN_GRAFANA:?}/
       - GF_SECURITY_ADMIN_PASSWORD=${SERVICE_PASSWORD_GRAFANA:?}
       - GF_SERVER_SERVE_FROM_SUB_PATH=false
+      - GF_SERVER_ENFORCE_DOMAIN=false
     volumes:
       - grafana-data:/var/lib/grafana
     entrypoint:
