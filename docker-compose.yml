@@ -1,74 +1,57 @@
-version: '3'
+version: '3.9'
+
 services:
-  alloy:
-    image: grafana/alloy:v1.7.5
-    ports:
-      - 12345:12345
-      - 4317:4317
-      - 4318:4318
-    volumes:
-      - ./config.alloy:/etc/alloy/config.alloy
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
-    depends_on:
-      - loki
-    networks:
-      - loki
   loki:
     image: grafana/loki:3.4.2
-    ports:
-      - "3100:3100"
-    volumes:
-      - ./loki-config.yaml:/etc/loki/local-config.yaml
     command: -config.file=/etc/loki/local-config.yaml
-    networks:
-      - loki
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml:ro   # файл→файл
+      - loki-data:/var/loki                                 # данные
+    networks: [loki]
+
+  alloy:
+    image: grafana/alloy:v1.7.5
+    environment:
+      - SERVICE_FQDN_ALLOY_12345
+    command: >
+      run --server.http.listen-addr=0.0.0.0:12345
+          --storage.path=/var/lib/alloy/data
+          /etc/alloy/config.alloy
+    volumes:
+      - ./config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on: [loki]
+    networks: [loki]
+
   grafana:
-    image: grafana/grafana-oss
+    image: grafana/grafana-oss:latest
     environment:
       - SERVICE_FQDN_GRAFANA_3000
-      - 'GF_SERVER_ROOT_URL=${SERVICE_FQDN_GRAFANA}'
-      - 'GF_SERVER_DOMAIN=${SERVICE_FQDN_GRAFANA}'
-      - 'GF_SECURITY_ADMIN_PASSWORD=${SERVICE_PASSWORD_GRAFANA}'
+      - GF_SERVER_ROOT_URL=${SERVICE_FQDN_GRAFANA:?}
+      - GF_SERVER_DOMAIN=${SERVICE_FQDN_GRAFANA:?}
+      - GF_SECURITY_ADMIN_PASSWORD=${SERVICE_PASSWORD_GRAFANA:?}
     volumes:
-      - 'grafana-data:/var/lib/grafana'
-    healthcheck:
-      test:
-        - CMD
-        - curl
-        - '-f'
-        - 'http://127.0.0.1:3000/api/health'
-      interval: 5s
-      timeout: 20s
-      retries: 10
-    ports:
-      - 3000:3000/tcp
+      - grafana-data:/var/lib/grafana
     entrypoint:
-       - sh
-       - -euc
-       - |
-         mkdir -p /etc/grafana/provisioning/datasources
-         cat <<EOF > /etc/grafana/provisioning/datasources/ds.yaml
-         apiVersion: 1
-         datasources:
-         - name: Loki
-           type: loki
-           access: proxy
-           orgId: 1
-           url: 'http://loki:3100'
-           basicAuth: false
-           isDefault: true
-           version: 1
-           editable: true 
-         EOF
-         /run.sh
-    networks:
-      - loki
-    
+      - sh
+      - -euc
+      - |
+        mkdir -p /etc/grafana/provisioning/datasources
+        cat <<'EOF' > /etc/grafana/provisioning/datasources/ds.yaml
+        apiVersion: 1
+        datasources:
+        - name: Loki
+          type: loki
+          access: proxy
+          url: http://loki:3100
+          isDefault: true
+        EOF
+        /run.sh
+    networks: [loki]
+
 networks:
-    loki:
+  loki: {}
 
-    
-
-
-    
+volumes:
+  grafana-data: {}
+  loki-data: {}
